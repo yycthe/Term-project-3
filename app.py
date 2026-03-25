@@ -9,6 +9,7 @@ Three tabs:
 
 import os
 import sys
+import subprocess
 import streamlit as st
 import pandas as pd
 import joblib
@@ -258,12 +259,72 @@ def run_prediction(home_id, away_id, model, metrics, team_stats, preprocessor, e
     return win_prob, model_name
 
 
+def run_training_with_live_logs():
+    """
+    Run agent.py and stream stdout/stderr logs in the app.
+    Returns (success: bool, full_log: str).
+    """
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    cmd = [sys.executable, "-u", "agent.py"]
+
+    log_placeholder = st.empty()
+    logs = []
+    update_every = 5
+
+    try:
+        with st.spinner("Training in progress... this may take several minutes."):
+            proc = subprocess.Popen(
+                cmd,
+                cwd=root_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+
+            line_count = 0
+            for line in proc.stdout:
+                logs.append(line.rstrip("\n"))
+                line_count += 1
+                if line_count % update_every == 0:
+                    log_placeholder.text("\n".join(logs[-200:]))
+
+            return_code = proc.wait()
+            log_placeholder.text("\n".join(logs[-200:]))
+            return return_code == 0, "\n".join(logs)
+    except Exception as e:
+        logs.append(f"[ERROR] Failed to run training: {e}")
+        log_placeholder.text("\n".join(logs[-200:]))
+        return False, "\n".join(logs)
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 #  MAIN UI
 # ═════════════════════════════════════════════════════════════════════════════
 
 def main():
     st.title("🏀 NBA Game Predictor")
+
+    st.markdown("### 🚀 One-click Training")
+    st.caption("Run full training from the UI and print live training output.")
+    if st.button("Start Training (`agent.py`)", type="primary"):
+        success, full_log = run_training_with_live_logs()
+        st.session_state["last_training_log"] = full_log
+        if success:
+            st.success("Training completed successfully. Reloading artifacts...")
+            load_artifacts.clear()
+            load_nba_teams.clear()
+            fetch_next_game.clear()
+            load_upcoming_games.clear()
+            st.rerun()
+        else:
+            st.error("Training failed. See log output below.")
+
+    if st.session_state.get("last_training_log"):
+        with st.expander("Last training output", expanded=False):
+            st.text(st.session_state["last_training_log"][-20000:])
+
+    st.divider()
 
     # ── Load everything ───────────────────────────────────────────────────
     model, metrics, team_stats, preprocessor, ensemble = load_artifacts()
@@ -522,20 +583,34 @@ def main():
                 with c3:
                     if st.checkbox("Select", key=row_key, label_visibility="collapsed"):
                         selected_games.append(g)
-            if selected_games:
-                batch_btn = st.button("🔮 Predict selected games", type="primary")
-            else:
-                batch_btn = False
+            btn_col1, btn_col2 = st.columns(2)
+            with btn_col1:
+                batch_selected_btn = st.button(
+                    "🔮 Predict selected games",
+                    type="primary",
+                    disabled=(len(selected_games) == 0),
+                )
+            with btn_col2:
+                batch_all_btn = st.button(
+                    "⚡ Predict all listed games",
+                    disabled=(len(games_to_show) == 0),
+                )
 
-            if batch_btn and selected_games:
+            games_to_predict = None
+            if batch_selected_btn and selected_games:
+                games_to_predict = selected_games
+            elif batch_all_btn:
+                games_to_predict = games_to_show
+
+            if games_to_predict:
                 predictions = _load_predictions()
-                game_ids_to_add = {g["game_id"] for g in selected_games}
+                game_ids_to_add = {g["game_id"] for g in games_to_predict}
                 predictions = [p for p in predictions if p.get("game_id") not in game_ids_to_add]
                 model_name_used = None
                 saved = 0
                 failed = 0
-                with st.spinner(f"Running predictions for {len(selected_games)} game(s)..."):
-                    for g in selected_games:
+                with st.spinner(f"Running predictions for {len(games_to_predict)} game(s)..."):
+                    for g in games_to_predict:
                         win_prob_home, model_name = run_prediction(
                             g["home_team_id"], g["away_team_id"],
                             model, metrics, team_stats, preprocessor, ensemble,

@@ -1,43 +1,43 @@
-# 运行说明（仅 Conda 环境）
+# Run Guide (Conda Only)
 
-项目统一用 **Conda 环境** `nba-predictor` 运行（已包含 llvm-openmp，避免 macOS 上 XGBoost 的 libomp 报错）。
+This project is designed to run in the **Conda** environment `nba-predictor` (includes `llvm-openmp` to avoid XGBoost `libomp` issues on macOS).
 
-## 1. 首次：创建并激活环境
+## 1. First-time setup: create and activate environment
 
-在项目目录执行：
+From the project directory, run:
 
 ```bash
 conda env create -f environment.yml
 conda activate nba-predictor
 ```
 
-## 2. 启动项目
+## 2. Start the project
 
-**预测 UI（Streamlit）：**
+**Prediction UI (Streamlit):**
 
 ```bash
 conda activate nba-predictor
 streamlit run app.py
 ```
 
-浏览器打开：http://localhost:8501
+Open in browser: http://localhost:8501
 
-**训练 / 跑完整 Agent：**
+**Train / run the full Agent:**
 
 ```bash
 conda activate nba-predictor
 python agent.py
 ```
 
-会生成/更新 `models/` 与 `outputs/` 下的模型和报告。
+This generates/updates model artifacts and reports under `models/` and `outputs/`.
 
-## 3. 之后每次运行
+## 3. For subsequent runs
 
 ```bash
-# 进入项目根目录（克隆后的仓库目录）
-# 例如：cd nba-game-predictor
+# Enter project root directory (your cloned repo)
+# Example: cd nba-game-predictor
 conda activate nba-predictor
 streamlit run app.py
 ```
 
-（或 `python agent.py` 做训练）
+(Or run `python agent.py` for training.)
