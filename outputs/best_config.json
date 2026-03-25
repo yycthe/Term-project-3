@@ -1,12 +1,12 @@
 {
-    "window_years": 3,
-    "elo_k": 40,
+    "window_years": 8,
+    "elo_k": 50,
     "model_type": "XGBoost",
     "strategy": "Auto_Select",
-    "top_k": 20,
+    "top_k": 15,
     "use_roll_features": true,
-    "use_diff_features": false,
+    "use_diff_features": true,
     "use_ratio_features": false,
     "use_elo_features": true,
-    "use_home_away_features": false
+    "use_home_away_features": true
 }
