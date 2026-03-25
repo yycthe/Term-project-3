@@ -23,3 +23,10 @@ outputs/*.jsonl
 
 # Local debug / scratch scripts
 *_scratch.py
+
+# Route A deploy artifacts (explicitly keep for Streamlit Cloud)
+!models/best_model.pkl
+!models/preprocessor.pkl
+!models/top_models_ensemble.pkl
+!outputs/metrics.json
+!outputs/latest_team_stats.json
