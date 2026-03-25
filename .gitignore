@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pkl
+*.pyc
+
+# IDE / OS
+.DS_Store
+.idea/
+*.swp
+*.swo
+
+# Generated outputs (keep curated reports/configs only)
+outputs/predictions.json
+outputs/latest_team_stats.json
+outputs/calibration_*.png
+outputs/*.jsonl
+
+# Local debug / scratch scripts
+*_scratch.py

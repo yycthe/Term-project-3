@@ -1,0 +1,89 @@
+{
+  "last_run": "2026-03-11T20:16:52.377758",
+  "total_trials_this_run": 85,
+  "total_trials_ever": 3147,
+  "best_auc_ever": 0.6741129214521995,
+  "best_logloss_ever": 0.6390261784417485,
+  "best_config": {
+    "window_years": 3,
+    "elo_k": 40,
+    "model_type": "XGBoost",
+    "strategy": "Auto_Select",
+    "top_k": 20,
+    "use_roll_features": true,
+    "use_diff_features": false,
+    "use_ratio_features": false,
+    "use_elo_features": true,
+    "use_home_away_features": false
+  },
+  "improvement_log": [
+    [
+      1,
+      0.6464
+    ],
+    [
+      3,
+      0.6457
+    ],
+    [
+      17,
+      0.6433
+    ],
+    [
+      33,
+      0.643
+    ],
+    [
+      40,
+      0.6428
+    ],
+    [
+      43,
+      0.641
+    ]
+  ],
+  "top_3_aucs": [
+    0.6737944566579688,
+    0.6741129214521995,
+    0.6690739865628403
+  ],
+  "top_3_models": [
+    "XGBoost",
+    "LogisticRegression",
+    "RandomForest"
+  ],
+  "policy": {
+    "window_years": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "elo_k": [
+      35,
+      40,
+      50
+    ],
+    "top_k": [
+      15,
+      20,
+      25,
+      30,
+      40,
+      50
+    ],
+    "strategies": [
+      "Auto_Select"
+    ],
+    "model_types": [
+      "XGBoost",
+      "RandomForest",
+      "LogisticRegression"
+    ]
+  }
+}

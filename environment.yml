@@ -1,0 +1,23 @@
+# Conda 环境（含 libomp，解决 macOS 上 XGBoost 的 libomp.dylib 依赖）
+# 使用：conda env create -f environment.yml && conda activate nba-predictor
+name: nba-predictor
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - llvm-openmp   # 提供 libomp.dylib，XGBoost 在 macOS 上需要
+  - pip
+  - pip:
+    - pandas
+    - numpy
+    - scikit-learn
+    - xgboost
+    - matplotlib
+    - seaborn
+    - streamlit
+    - joblib
+    - tabulate
+    - optuna
+    - nba_api
+    - requests

@@ -1,0 +1,92 @@
+{
+  "generated_at": "2026-03-11T20:16:15.045412",
+  "phase": "EXPLORE -> EXPLOIT transition",
+  "based_on_trials": 60,
+  "best_logloss_at_transition": 0.641,
+  "adaptations": {
+    "window_years": {
+      "before": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "after": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    "elo_k": {
+      "before": [
+        20,
+        25,
+        30,
+        35,
+        40,
+        50
+      ],
+      "after": [
+        35,
+        40,
+        50
+      ]
+    },
+    "model_types": {
+      "before": [
+        "XGBoost",
+        "RandomForest",
+        "LogisticRegression"
+      ],
+      "after": [
+        "XGBoost",
+        "RandomForest",
+        "LogisticRegression"
+      ]
+    },
+    "top_k": {
+      "before": [
+        10,
+        15,
+        20,
+        25,
+        30,
+        40,
+        50
+      ],
+      "after": [
+        15,
+        20,
+        25,
+        30,
+        40,
+        50
+      ]
+    }
+  },
+  "reasoning": {
+    "top_model": "? (10/10 in top-10)",
+    "window_sweet_spot": "3-9 years",
+    "elo_k_sweet_spot": "40-40",
+    "top_k_sweet_spot": "20-50",
+    "feature_type_patterns": {
+      "roll": "6/10 True",
+      "diff": "1/10 True",
+      "ratio": "1/10 True",
+      "elo": "10/10 True",
+      "home_away": "1/10 True"
+    }
+  }
+}

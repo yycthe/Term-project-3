@@ -1,0 +1,19 @@
+{
+    "AUC": 0.6737944566579688,
+    "LogLoss": 0.6409570241527577,
+    "BrierScore": 0.22485485500096167,
+    "Accuracy": 0.6305084745762712,
+    "trial": 42,
+    "window_years": 3,
+    "elo_k": 40,
+    "model_type": "XGBoost",
+    "strategy": "Auto_Select",
+    "top_k": 20,
+    "features_type": "optimized",
+    "model": "XGBoost (W=3y, K=40, S=Auto_Select)",
+    "feature_names": [
+        "ELO_DIFF"
+    ],
+    "ensemble_auc": 0.6773437981549588,
+    "ensemble_logloss": 0.6392390407568989
+}
