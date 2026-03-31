@@ -338,6 +338,16 @@ def main():
     st.sidebar.metric("AUC", f"{metrics.get('AUC', 0):.4f}")
     st.sidebar.metric("LogLoss", f"{metrics.get('LogLoss', 0):.4f}")
     st.sidebar.metric("Accuracy", f"{metrics.get('Accuracy', 0):.1%}")
+    st.sidebar.markdown("---")
+    status = storage.get_storage_status()
+    if status.get("firebase_enabled") and status.get("firebase_connected"):
+        st.sidebar.success("Storage: Firebase connected")
+    elif status.get("firebase_enabled"):
+        st.sidebar.error("Storage: Firebase fallback")
+        if status.get("firebase_error"):
+            st.sidebar.caption(f"Reason: {status['firebase_error']}")
+    else:
+        st.sidebar.info("Storage: Local JSON (Firebase disabled)")
 
     pred_count = len(predictions)
     settled = [p for p in predictions if p.get("status") == "settled"]

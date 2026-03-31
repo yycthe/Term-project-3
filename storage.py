@@ -10,6 +10,17 @@ _FIREBASE_ERROR: Optional[str] = None
 _DB = None
 
 
+def get_storage_status() -> Dict[str, Any]:
+    """Return current backend status for UI/debug."""
+    enabled = _firebase_enabled()
+    connected = _ensure_firestore() if enabled else False
+    return {
+        "firebase_enabled": enabled,
+        "firebase_connected": connected,
+        "firebase_error": _FIREBASE_ERROR,
+    }
+
+
 def _get_secret_value(key: str) -> str:
     """Read from env first, then Streamlit secrets if available."""
     val = os.getenv(key, "").strip()
@@ -93,8 +104,9 @@ def load_predictions() -> List[Dict[str, Any]]:
             docs = _DB.collection(config.FIREBASE_PREDICTIONS_COLLECTION).stream()
             rows = [d.to_dict() for d in docs if d.to_dict()]
             return rows
-        except Exception:
-            pass
+        except Exception as e:
+            global _FIREBASE_ERROR
+            _FIREBASE_ERROR = f"load_predictions failed: {e}"
 
     if os.path.exists(config.PREDICTIONS_FILE):
         try:
@@ -127,8 +139,9 @@ def save_predictions(preds: List[Dict[str, Any]]) -> None:
             for doc_id in to_delete:
                 batch.delete(coll.document(doc_id))
             batch.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            global _FIREBASE_ERROR
+            _FIREBASE_ERROR = f"save_predictions failed: {e}"
 
     with open(config.PREDICTIONS_FILE, "w") as f:
         json.dump(preds, f, indent=2, default=str)
@@ -147,8 +160,9 @@ def load_agent_memory() -> Dict[str, Any]:
                 data = doc.to_dict() or {}
                 if isinstance(data, dict):
                     return data
-        except Exception:
-            pass
+        except Exception as e:
+            global _FIREBASE_ERROR
+            _FIREBASE_ERROR = f"load_agent_memory failed: {e}"
 
     if os.path.exists(config.MEMORY_FILE):
         try:
@@ -169,8 +183,9 @@ def save_agent_memory(mem: Dict[str, Any]) -> None:
                 .document(config.FIREBASE_AGENT_MEMORY_DOC_ID)
                 .set(mem)
             )
-        except Exception:
-            pass
+        except Exception as e:
+            global _FIREBASE_ERROR
+            _FIREBASE_ERROR = f"save_agent_memory failed: {e}"
 
     with open(config.MEMORY_FILE, "w") as f:
         json.dump(mem, f, indent=2)
