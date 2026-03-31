@@ -28,7 +28,7 @@ RANDOM_STATE = 42
 
 # Optimisation target: minimise LogLoss (probability quality)
 # with an AUC floor to ensure ranking ability is not sacrificed.
-LOGLOSS_THRESHOLD = 0.63   # Goal: LogLoss <= this → stop
+LOGLOSS_THRESHOLD = 0.62   # Goal: LogLoss <= this → stop
 AUC_FLOOR = 0.60           # Constraint: trials with AUC < this are penalised
 AUC_THRESHOLD = 0.68       # Reference only (legacy / monitoring)
 

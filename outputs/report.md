@@ -24,13 +24,25 @@ We implemented a chronological Elo rating system (`ELO_PRE`). This system calcul
 ## Model Comparison
 | Model | Iteration | Features | AUC | LogLoss | Brier Score | Accuracy |
 |-------|-----------|----------|-----|---------|-------------|----------|
-| XGBoost (W=8y, K=35, S=Auto_Select) | 3 | optimized | 0.6730 | 0.6416 | 0.2251 | 0.6389 |
-| RandomForest (W=6y, K=25, S=Auto_Select) | 4 | optimized | 0.7047 | 0.6231 | 0.2165 | 0.6548 |
+| XGBoost (W=6y, K=10, S=Auto_Select) | 0 | optimized | 0.6815 | 0.6379 | 0.2233 | 0.6522 |
+| LogisticRegression (W=1y, K=15, S=Auto_Select) | 2 | optimized | 0.6952 | 0.6284 | 0.2190 | 0.6522 |
+| XGBoost (W=9y, K=50, S=Auto_Select) | 3 | optimized | 0.6882 | 0.6325 | 0.2208 | 0.6522 |
+| RandomForest (W=2y, K=35, S=Auto_Select) | 4 | optimized | 0.7044 | 0.6237 | 0.2167 | 0.6619 |
+| RandomForest (W=7y, K=20, S=Auto_Select) | 7 | optimized | 0.6424 | 0.6857 | 0.2353 | 0.5927 |
+| LogisticRegression (W=2y, K=40, S=Auto_Select) | 8 | optimized | 0.6962 | 0.6276 | 0.2188 | 0.6539 |
+| XGBoost (W=5y, K=40, S=Auto_Select) | 9 | optimized | 0.6947 | 0.6319 | 0.2205 | 0.6575 |
+| RandomForest (W=2y, K=35, S=Auto_Select) | 10 | optimized | 0.7009 | 0.6259 | 0.2179 | 0.6513 |
+| LogisticRegression (W=2y, K=35, S=Auto_Select) | 11 | optimized | 0.6993 | 0.6269 | 0.2184 | 0.6575 |
+| XGBoost (W=2y, K=35, S=Auto_Select) | 12 | optimized | 0.6692 | 0.6436 | 0.2262 | 0.6193 |
+| RandomForest (W=8y, K=30, S=Auto_Select) | 13 | optimized | 0.7016 | 0.6261 | 0.2178 | 0.6637 |
+| LogisticRegression (W=4y, K=5, S=Auto_Select) | 14 | optimized | 0.6796 | 0.6381 | 0.2234 | 0.6380 |
+| XGBoost (W=2y, K=35, S=Auto_Select) | 15 | optimized | 0.6843 | 0.6429 | 0.2243 | 0.6451 |
+| RandomForest (W=2y, K=35, S=Auto_Select) | 16 | optimized | 0.7137 | 0.6182 | 0.2143 | 0.6699 |
 
 ## Final Best Model Metrics
-- **Model**: RandomForest (W=6y, K=25, S=Auto_Select)
-- **AUC**: 0.7047
-- **LogLoss**: 0.6231
+- **Model**: RandomForest (W=2y, K=35, S=Auto_Select)
+- **AUC**: 0.7137
+- **LogLoss**: 0.6182
 
 ## Top Feature Importances
 N/A
