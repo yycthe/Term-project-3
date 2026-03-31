@@ -10,4 +10,4 @@ tabulate
 optuna
 nba_api
 requests
-firebase-admin
+firebase-admin==6.8.0
