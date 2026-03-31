@@ -21,3 +21,4 @@ dependencies:
     - optuna
     - nba_api
     - requests
+    - firebase-admin==6.8.0
