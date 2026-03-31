@@ -71,7 +71,7 @@ def _ensure_xgboost_device(model, target_device='cpu'):
 
 
 @st.cache_resource
-def load_artifacts():
+def load_artifacts(_version_key=None):
     """Load trained model, metrics, team stats, preprocessor, ensemble."""
     try:
         model = joblib.load("models/best_model.pkl")
@@ -97,6 +97,28 @@ def load_artifacts():
         return model, metrics, team_stats, preprocessor, ensemble
     except Exception:
         return None, None, None, None, None
+
+
+def artifact_version_key():
+    """
+    Build a lightweight cache-busting key from artifact file mtimes.
+    When training updates model/metrics files, this key changes and
+    Streamlit reloads fresh artifacts automatically.
+    """
+    paths = [
+        "models/best_model.pkl",
+        "models/top_models_ensemble.pkl",
+        "models/preprocessor.pkl",
+        "outputs/metrics.json",
+        "outputs/latest_team_stats.json",
+    ]
+    key = []
+    for p in paths:
+        try:
+            key.append((p, os.path.getmtime(p)))
+        except OSError:
+            key.append((p, None))
+    return tuple(key)
 
 
 @st.cache_data(ttl=300)
@@ -320,7 +342,7 @@ def main():
     st.divider()
 
     # ── Load everything ───────────────────────────────────────────────────
-    model, metrics, team_stats, preprocessor, ensemble = load_artifacts()
+    model, metrics, team_stats, preprocessor, ensemble = load_artifacts(artifact_version_key())
     nba_teams = load_nba_teams()
 
     if not model or not team_stats:
