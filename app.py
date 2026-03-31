@@ -719,6 +719,33 @@ def main():
             if not predictions_filtered:
                 st.info("No predictions match the selected date(s).")
             else:
+                # Batch delete controls
+                st.markdown("#### Manage Predictions")
+                delete_options = []
+                for p in predictions_filtered:
+                    gid = p.get("game_id", "")
+                    matchup = f"{p.get('home_team', '?')} vs {p.get('away_team', '?')}"
+                    gdate = p.get("game_date", "?")
+                    status_txt = p.get("status", "pending")
+                    delete_options.append((gid, f"{gdate} | {matchup} | {status_txt}"))
+
+                delete_map = {label: gid for gid, label in delete_options if gid}
+                selected_delete_labels = st.multiselect(
+                    "Select predictions to delete (you can re-predict them afterwards)",
+                    options=list(delete_map.keys()),
+                    default=[],
+                )
+                if st.button(
+                    "🗑️ Delete selected predictions",
+                    type="secondary",
+                    disabled=(len(selected_delete_labels) == 0),
+                ):
+                    to_delete_ids = {delete_map[lbl] for lbl in selected_delete_labels}
+                    remaining = [p for p in predictions if p.get("game_id") not in to_delete_ids]
+                    _save_predictions(remaining)
+                    st.success(f"Deleted {len(to_delete_ids)} prediction(s). You can now predict them again.")
+                    st.rerun()
+
                 # Build table (already sorted: most recent first)
                 rows = []
                 for p in predictions_filtered:
