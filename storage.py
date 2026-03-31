@@ -10,6 +10,24 @@ _FIREBASE_ERROR: Optional[str] = None
 _DB = None
 
 
+def _get_secret_value(key: str) -> str:
+    """Read from env first, then Streamlit secrets if available."""
+    val = os.getenv(key, "").strip()
+    if val:
+        return val
+    try:
+        import streamlit as st
+        s_val = st.secrets.get(key, "")
+        return str(s_val).strip() if s_val else ""
+    except Exception:
+        return ""
+
+
+def _firebase_enabled() -> bool:
+    flag = _get_secret_value("USE_FIREBASE").lower()
+    return flag in {"1", "true", "yes", "on"}
+
+
 def _read_service_account_dict() -> Optional[Dict[str, Any]]:
     """
     Load Firebase service account from env vars.
@@ -18,14 +36,14 @@ def _read_service_account_dict() -> Optional[Dict[str, Any]]:
     - FIREBASE_SERVICE_ACCOUNT_JSON: raw JSON string
     - FIREBASE_SERVICE_ACCOUNT_B64: base64-encoded JSON string
     """
-    raw_json = os.getenv(config.FIREBASE_SERVICE_ACCOUNT_JSON_ENV, "").strip()
+    raw_json = _get_secret_value(config.FIREBASE_SERVICE_ACCOUNT_JSON_ENV)
     if raw_json:
         try:
             return json.loads(raw_json)
         except Exception:
             return None
 
-    b64_json = os.getenv(config.FIREBASE_SERVICE_ACCOUNT_B64_ENV, "").strip()
+    b64_json = _get_secret_value(config.FIREBASE_SERVICE_ACCOUNT_B64_ENV)
     if b64_json:
         try:
             decoded = base64.b64decode(b64_json).decode("utf-8")
@@ -43,11 +61,11 @@ def _ensure_firestore() -> bool:
     if _FIREBASE_ERROR:
         return False
 
-    if not config.USE_FIREBASE:
+    if not _firebase_enabled():
         _FIREBASE_ERROR = "Firebase disabled by config."
         return False
 
-    project_id = os.getenv(config.FIREBASE_PROJECT_ID_ENV, "").strip()
+    project_id = _get_secret_value(config.FIREBASE_PROJECT_ID_ENV)
     creds_dict = _read_service_account_dict()
     if not project_id or not creds_dict:
         _FIREBASE_ERROR = "Missing Firebase project id or service account json."
