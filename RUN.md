@@ -31,6 +31,26 @@ python agent.py
 
 This generates/updates model artifacts and reports under `models/` and `outputs/`.
 
+## 2.1 Optional: Firebase persistence (fix cloud sleep memory loss)
+
+If you deploy to cloud and want prediction/memory to survive app restarts, configure Firebase.
+
+Required environment variables:
+
+```bash
+USE_FIREBASE=1
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account", ... }'
+```
+
+Alternative credential format:
+
+```bash
+FIREBASE_SERVICE_ACCOUNT_B64=<base64-json>
+```
+
+Detailed setup and marked integration points: `FIREBASE_SETUP.md`.
+
 ## 3. For subsequent runs
 
 ```bash

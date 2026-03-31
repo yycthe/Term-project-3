@@ -1,7 +1,7 @@
 {
-    "window_years": 8,
-    "elo_k": 50,
-    "model_type": "XGBoost",
+    "window_years": 6,
+    "elo_k": 25,
+    "model_type": "RandomForest",
     "strategy": "Auto_Select",
     "top_k": 15,
     "use_roll_features": true,

@@ -20,6 +20,7 @@ from datetime import datetime
 
 import config
 import features as feat_module
+import storage
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(page_title="NBA Predictor", layout="wide", page_icon="🏀")
@@ -142,20 +143,12 @@ def load_upcoming_games(limit_days=7):
 
 def _load_predictions():
     """Load prediction history from JSON."""
-    path = config.PREDICTIONS_FILE
-    if os.path.exists(path):
-        try:
-            with open(path, "r") as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
+    return storage.load_predictions()
 
 
 def _save_predictions(preds):
     """Save prediction history to JSON."""
-    with open(config.PREDICTIONS_FILE, "w") as f:
-        json.dump(preds, f, indent=2, default=str)
+    storage.save_predictions(preds)
 
 
 def _dedupe_predictions_by_game_id(predictions):

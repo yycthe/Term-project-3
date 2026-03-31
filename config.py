@@ -74,6 +74,21 @@ POLICY_FILE = os.path.join(OUTPUTS_DIR, "policy.json")
 DIAGNOSTICS_FILE = os.path.join(OUTPUTS_DIR, "diagnostics.md")
 PREDICTIONS_FILE = os.path.join(OUTPUTS_DIR, "predictions.json")
 
+# ── Firebase (optional persistent storage for cloud sleep/restart) ───────────
+# Set USE_FIREBASE=1 to enable Firestore persistence.
+# Put credentials in env vars (or Streamlit secrets exposed as env):
+# - FIREBASE_PROJECT_ID
+# - FIREBASE_SERVICE_ACCOUNT_JSON  (raw JSON)
+#   OR
+# - FIREBASE_SERVICE_ACCOUNT_B64   (base64 JSON)
+USE_FIREBASE = os.getenv("USE_FIREBASE", "0").strip().lower() in {"1", "true", "yes", "on"}
+FIREBASE_PROJECT_ID_ENV = "FIREBASE_PROJECT_ID"
+FIREBASE_SERVICE_ACCOUNT_JSON_ENV = "FIREBASE_SERVICE_ACCOUNT_JSON"
+FIREBASE_SERVICE_ACCOUNT_B64_ENV = "FIREBASE_SERVICE_ACCOUNT_B64"
+FIREBASE_PREDICTIONS_COLLECTION = "predictions"
+FIREBASE_META_COLLECTION = "meta"
+FIREBASE_AGENT_MEMORY_DOC_ID = "agent_memory"
+
 # ── NBA Season (auto-detected) ────────────────────────────
 # NBA season starts in October: Oct 2025 → "2025-26", Feb 2026 → "2025-26"
 _now = datetime.now()

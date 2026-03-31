@@ -46,6 +46,7 @@ import features
 import models
 import evaluate
 import report
+import storage
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -92,14 +93,11 @@ class AgentOrchestrator:
     # ── Memory (cross-run persistence) ────────────────────────────────────────
 
     def _load_memory(self):
-        if os.path.exists(config.MEMORY_FILE):
-            try:
-                with open(config.MEMORY_FILE, "r") as f:
-                    self.memory = json.load(f)
-                return self.memory
-            except Exception:
-                return {}
-        return {}
+        try:
+            self.memory = storage.load_agent_memory()
+            return self.memory if isinstance(self.memory, dict) else {}
+        except Exception:
+            return {}
 
     def _save_memory(self):
         mem = {
@@ -120,8 +118,7 @@ class AgentOrchestrator:
             "top_3_models": [t.get("model_type", "?") for t in self.top_trials],
             "policy": self.policy,  # save exploited policy for next run
         }
-        with open(config.MEMORY_FILE, "w") as f:
-            json.dump(mem, f, indent=2)
+        storage.save_agent_memory(mem)
 
     # ── Search-space helpers ──────────────────────────────────────────────────
 

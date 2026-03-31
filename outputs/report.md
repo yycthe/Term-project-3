@@ -2,7 +2,7 @@
 
 ## Data Overview
 - Dataset Path: nba_game_logs_combined.csv
-- Total Samples: 14288
+- Total Samples: 14336
 - Target Column: WIN
 - Date Column: GAME_DATE
 
@@ -24,12 +24,13 @@ We implemented a chronological Elo rating system (`ELO_PRE`). This system calcul
 ## Model Comparison
 | Model | Iteration | Features | AUC | LogLoss | Brier Score | Accuracy |
 |-------|-----------|----------|-----|---------|-------------|----------|
-| XGBoost (W=8y, K=50, S=Auto_Select) | 0 | optimized | 0.6926 | 0.6293 | 0.2199 | 0.6450 |
+| XGBoost (W=8y, K=35, S=Auto_Select) | 3 | optimized | 0.6730 | 0.6416 | 0.2251 | 0.6389 |
+| RandomForest (W=6y, K=25, S=Auto_Select) | 4 | optimized | 0.7047 | 0.6231 | 0.2165 | 0.6548 |
 
 ## Final Best Model Metrics
-- **Model**: XGBoost (W=8y, K=50, S=Auto_Select)
-- **AUC**: 0.6926
-- **LogLoss**: 0.6293
+- **Model**: RandomForest (W=6y, K=25, S=Auto_Select)
+- **AUC**: 0.7047
+- **LogLoss**: 0.6231
 
 ## Top Feature Importances
 N/A

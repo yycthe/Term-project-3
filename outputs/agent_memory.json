@@ -1,13 +1,13 @@
 {
-  "last_run": "2026-03-25T12:19:48.910932",
-  "total_trials_this_run": 1,
-  "total_trials_ever": 3148,
-  "best_auc_ever": 0.6926475174110391,
-  "best_logloss_ever": 0.6292589994315456,
+  "last_run": "2026-03-31T00:33:50.854267",
+  "total_trials_this_run": 5,
+  "total_trials_ever": 3153,
+  "best_auc_ever": 0.7047003244894063,
+  "best_logloss_ever": 0.6231072554853712,
   "best_config": {
-    "window_years": 8,
-    "elo_k": 50,
-    "model_type": "XGBoost",
+    "window_years": 6,
+    "elo_k": 25,
+    "model_type": "RandomForest",
     "strategy": "Auto_Select",
     "top_k": 15,
     "use_roll_features": true,
@@ -18,14 +18,20 @@
   },
   "improvement_log": [
     [
-      1,
-      0.6293
+      4,
+      0.6416
+    ],
+    [
+      5,
+      0.6231
     ]
   ],
   "top_3_aucs": [
-    0.6926475174110391
+    0.7047003244894063,
+    0.6729878475536044
   ],
   "top_3_models": [
+    "RandomForest",
     "XGBoost"
   ],
   "policy": null
