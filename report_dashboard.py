@@ -126,14 +126,16 @@ def _chart_style(chart):
 
 
 def progress_chart(experiments, metric_label):
-    metric, higher, fmt = METRICS[metric_label]
+    metric, _, fmt = METRICS[metric_label]
     frame = experiments.sort_values("Trial").copy()
-    frame["Best so far"] = frame[metric].cummax() if higher else frame[metric].cummin()
+    # Keep chart data stable when switching the displayed metric.
+    for field, higher, _ in METRICS.values():
+        frame[f"Best {field}"] = frame[field].cummax() if higher else frame[field].cummin()
     x = alt.X("Trial:Q", title="Trial", axis=alt.Axis(tickMinStep=1, format="d"))
     y = alt.Y(f"{metric}:Q", title=metric_label, scale=alt.Scale(zero=False), axis=alt.Axis(format=fmt))
     base = alt.Chart(frame)
     line = base.mark_line(color="#46d7b6", strokeWidth=2.5, interpolate="step-after", opacity=0.6).encode(
-        x=x, y=alt.Y("Best so far:Q", title=metric_label, scale=alt.Scale(zero=False), axis=alt.Axis(format=fmt)),
+        x=x, y=alt.Y(f"Best {metric}:Q", title=metric_label, scale=alt.Scale(zero=False), axis=alt.Axis(format=fmt)),
     )
     points = base.mark_circle(size=100, opacity=0.95).encode(
         x=x, y=y, color=alt.Color("Model:N", scale=alt.Scale(domain=FAMILIES, range=COLORS)),
@@ -143,9 +145,10 @@ def progress_chart(experiments, metric_label):
 
 
 def importance_chart(importance, count):
-    frame = importance.head(count).copy()
+    frame = importance.copy()
     frame["Label"] = frame["Feature"].map(_feature_label)
-    chart = alt.Chart(frame).mark_bar(color="#7ba9ff", cornerRadiusEnd=4, size=17).encode(
+    frame["Rank"] = range(1, len(frame) + 1)
+    chart = alt.Chart(frame).transform_filter(alt.datum.Rank <= count).mark_bar(color="#7ba9ff", cornerRadiusEnd=4, size=17).encode(
         x=alt.X("Importance:Q", title="Feature importance", axis=alt.Axis(format=".3f")),
         y=alt.Y("Label:N", title=None, sort="-x", axis=alt.Axis(labelLimit=230)),
         tooltip=["Feature:N", alt.Tooltip("Importance:Q", format=".4f")],
@@ -216,7 +219,7 @@ def render_report_dashboard(model, metrics, team_stats, artifact_version):
         if experiments.empty:
             st.info("Experiment details are not available in the saved report.")
         else:
-            st.altair_chart(progress_chart(experiments, metric_label), use_container_width=True, key=f"report_progress_{metric_label}")
+            st.altair_chart(progress_chart(experiments, metric_label), use_container_width=True)
             st.caption("Dots show reported trials; the step line tracks the best value seen for the selected metric.")
             attempted = memory.get("total_trials_this_run")
             st.caption(f"{len(experiments)} scored trials shown" + (f" · {attempted} total attempts in the saved run." if attempted else "."))
@@ -226,7 +229,7 @@ def render_report_dashboard(model, metrics, team_stats, artifact_version):
         if importance.empty:
             st.info("Feature importance is not available for this model.")
         else:
-            st.altair_chart(importance_chart(importance, count), use_container_width=True, key=f"report_importance_{count}")
+            st.altair_chart(importance_chart(importance, count), use_container_width=True)
             st.caption("Importance describes the selected model's inputs, not win probabilities. Calibrated models average importance across fitted base models.")
 
     with st.container(border=True):
