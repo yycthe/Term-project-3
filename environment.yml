@@ -16,6 +16,7 @@ dependencies:
     - matplotlib
     - seaborn
     - streamlit
+    - altair
     - joblib
     - tabulate
     - optuna

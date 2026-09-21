@@ -21,6 +21,7 @@ from datetime import datetime
 import config
 import features as feat_module
 import storage
+from report_dashboard import render_report_dashboard
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(page_title="NBA Predictor", layout="wide", page_icon="🏀")
@@ -320,20 +321,20 @@ def run_training_with_live_logs():
 def main():
     st.title("🏀 NBA Game Predictor")
 
-    st.markdown("### 🚀 One-click Training")
-    st.caption("Run full training from the UI and print live training output.")
-    if st.button("Start Training (`agent.py`)", type="primary"):
-        success, full_log = run_training_with_live_logs()
-        st.session_state["last_training_log"] = full_log
-        if success:
-            st.success("Training completed successfully. Reloading artifacts...")
-            load_artifacts.clear()
-            load_nba_teams.clear()
-            fetch_next_game.clear()
-            load_upcoming_games.clear()
-            st.rerun()
-        else:
-            st.error("Training failed. See log output below.")
+    with st.expander("🚀 Training controls", expanded=False):
+        st.caption("Run full training and print live training output.")
+        if st.button("Start Training (`agent.py`)", type="primary"):
+            success, full_log = run_training_with_live_logs()
+            st.session_state["last_training_log"] = full_log
+            if success:
+                st.success("Training completed successfully. Reloading artifacts...")
+                load_artifacts.clear()
+                load_nba_teams.clear()
+                fetch_next_game.clear()
+                load_upcoming_games.clear()
+                st.rerun()
+            else:
+                st.error("Training failed. See log output below.")
 
     if st.session_state.get("last_training_log"):
         with st.expander("Last training output", expanded=False):
@@ -813,27 +814,7 @@ def main():
     #  TAB 3 — EXPERIMENT REPORT
     # ══════════════════════════════════════════════════════════════════════
     with tab3:
-        st.subheader("Model Training Report")
-        if os.path.exists("outputs/report.md"):
-            with open("outputs/report.md", "r") as f:
-                st.markdown(f.read())
-        else:
-            st.info("No report available. Run `python agent.py` to generate one.")
-
-        # Show calibration curves if they exist
-        cal_images = [
-            f for f in os.listdir(config.OUTPUTS_DIR)
-            if f.startswith("calibration_") and f.endswith(".png")
-        ]
-        if cal_images:
-            st.subheader("Calibration Curves")
-            cols = st.columns(min(len(cal_images), 3))
-            for i, img_name in enumerate(cal_images):
-                with cols[i % 3]:
-                    st.image(
-                        os.path.join(config.OUTPUTS_DIR, img_name),
-                        caption=img_name.replace("calibration_", "").replace(".png", ""),
-                    )
+        render_report_dashboard(model, metrics, team_stats, artifact_version_key())
 
 
 # ═════════════════════════════════════════════════════════════════════════════
