@@ -2,6 +2,18 @@ import os
 import json
 import config
 
+def format_feature_importances(top_features):
+    if top_features is None or top_features.empty:
+        return "Feature importance is not available for this model type."
+    table = (
+        top_features.head(10).rename("Importance").rename_axis("Feature")
+        .to_markdown(floatfmt=".4f")
+    )
+    return (
+        table + "\n\nFor calibrated models, importance is averaged across the fitted "
+        "base models. These values describe model features, not win probabilities."
+    )
+
 def generate_markdown_report(data_info, leakage_info, results_table, best_model_metrics, top_features):
     report = f"""# Agentic Sports Win/Loss Predictor Report
 
@@ -42,7 +54,7 @@ We implemented a chronological Elo rating system (`ELO_PRE`). This system calcul
 - **LogLoss**: {best_model_metrics['LogLoss']:.4f}
 
 ## Top Feature Importances
-{top_features.head(10).to_markdown() if top_features is not None else "N/A"}
+{format_feature_importances(top_features)}
 
 ## Calibration Notes
 A calibration curve was generated for the best model. Probability calibration was performed using `CalibratedClassifierCV`.

@@ -96,6 +96,24 @@ def plot_calibration_curve(y_true, y_prob, model_name):
 
 
 def get_feature_importance(model, feature_names):
+    """Read fitted model importances, averaging calibrated CV base models."""
+    if hasattr(model, 'calibrated_classifiers_'):
+        fold_importances = []
+        for calibrated in model.calibrated_classifiers_:
+            fitted = getattr(calibrated, 'estimator', None)
+            if fitted is None:
+                fitted = getattr(calibrated, 'base_estimator', None)
+            importance = get_feature_importance(fitted, feature_names)
+            if importance is None:
+                return None
+            # Each fold is sorted independently; align by name before averaging.
+            fold_importances.append(importance.reindex(feature_names).to_numpy())
+        if not fold_importances:
+            return None
+        return pd.Series(
+            np.mean(fold_importances, axis=0), index=feature_names
+        ).sort_values(ascending=False)
+
     if hasattr(model, 'feature_importances_'):
         importances = model.feature_importances_
         feat_imp = pd.Series(importances, index=feature_names).sort_values(ascending=False)

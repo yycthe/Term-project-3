@@ -45,7 +45,20 @@ We implemented a chronological Elo rating system (`ELO_PRE`). This system calcul
 - **LogLoss**: 0.6182
 
 ## Top Feature Importances
-N/A
+| Feature           |   Importance |
+|:------------------|-------------:|
+| ELO_DIFF          |       0.0872 |
+| HOME_ELO_PRE      |       0.0691 |
+| AWAY_ELO_PRE      |       0.0553 |
+| AWAY_ROLL_FG_PCT  |       0.0343 |
+| AWAY_ROLL_EFG_PCT |       0.0325 |
+| HOME_ROLL_FT_RATE |       0.0315 |
+| HOME_ROLL_EFG_PCT |       0.0308 |
+| AWAY_ROLL_TOV_PCT |       0.0303 |
+| HOME_ROLL_TOV_PCT |       0.0299 |
+| HOME_ROLL_FG_PCT  |       0.0294 |
+
+For calibrated models, importance is averaged across the fitted base models. These values describe model features, not win probabilities.
 
 ## Calibration Notes
 A calibration curve was generated for the best model. Probability calibration was performed using `CalibratedClassifierCV`.

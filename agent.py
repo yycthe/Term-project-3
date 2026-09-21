@@ -1255,8 +1255,7 @@ class AgentOrchestrator:
             json.dump(self.best_metrics, f, indent=4)
 
         # Feature importance
-        base = self.best_model.estimator if hasattr(self.best_model, "estimator") else self.best_model
-        fi = evaluate.get_feature_importance(base, self.best_feature_names)
+        fi = evaluate.get_feature_importance(self.best_model, self.best_feature_names)
 
         # Report
         di = {"shape": df_best.shape, "target": target, "date": date_col}
