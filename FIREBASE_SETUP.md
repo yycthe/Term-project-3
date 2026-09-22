@@ -40,6 +40,28 @@ Notes:
 
 ## 5) Local test
 
+### Prediction history during an outage
+
+Cloud history reads are shared across sessions in the same app process for 15 minutes.
+Failed reads also back off for 15 minutes; a later page run retries automatically.
+A successful read is mirrored atomically to an ignored, project-scoped local cache.
+That file is an outage aid, not durable storage across Streamlit redeployments.
+
+If no full cached history survives, the UI can display the verified 120-row public
+table captured on 2026-09-21. This read-only CSV preserves the displayed predictions
+and results, not original document IDs, timestamps, scores or full-precision values.
+It is never uploaded into Firestore. A successful cloud read always takes precedence.
+
+While cloud history cannot be read, editing and saving are blocked. Normal saves
+upsert changed documents only; missing rows in an incoming list never delete other
+history. User-requested deletions use a separate explicit-ID operation.
+
+Run the outage and write-protection checks with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
 Run:
 
 ```bash

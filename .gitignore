@@ -17,6 +17,7 @@ __pycache__/
 
 # Generated outputs (keep curated reports/configs only)
 outputs/predictions.json
+outputs/predictions_firestore_cache.json
 outputs/latest_team_stats.json
 outputs/calibration_*.png
 outputs/*.jsonl

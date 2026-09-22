@@ -22,6 +22,7 @@ import config
 import features as feat_module
 import storage
 from report_dashboard import render_report_dashboard
+from history_snapshot import load_verified_history_snapshot
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(page_title="NBA Predictor", layout="wide", page_icon="🏀")
@@ -171,7 +172,11 @@ def _load_predictions():
 
 def _save_predictions(preds):
     """Save prediction history to JSON."""
-    storage.save_predictions(preds)
+    try:
+        storage.save_predictions(preds)
+    except storage.PredictionStorageError as exc:
+        st.error(str(exc))
+        st.stop()
 
 
 def _dedupe_predictions_by_game_id(predictions):
@@ -188,14 +193,14 @@ def _settle_on_load():
     """Auto-settle pending predictions on app startup."""
     preds = _load_predictions()
     pending_count = sum(1 for p in preds if p.get("status") == "pending")
-    if pending_count == 0:
+    if pending_count == 0 or not storage.get_storage_status().get("predictions_writable"):
         return preds, 0
     try:
         from nba_fetch import settle_predictions
-        updated = settle_predictions(preds)
+        updated = settle_predictions([dict(row) for row in preds])
         settled_count = pending_count - sum(1 for p in updated if p.get("status") == "pending")
         if settled_count > 0:
-            _save_predictions(updated)
+            storage.save_predictions(updated)
         return updated, settled_count
     except Exception:
         return preds, 0
@@ -366,14 +371,18 @@ def main():
     if status.get("firebase_enabled") and status.get("firebase_connected"):
         st.sidebar.success("Storage: Firebase connected")
     elif status.get("firebase_enabled"):
-        st.sidebar.error("Storage: Firebase fallback")
+        st.sidebar.error("Storage: Firebase temporarily unavailable")
         if status.get("firebase_error"):
             st.sidebar.caption(f"Reason: {status['firebase_error']}")
     else:
         st.sidebar.info("Storage: Local JSON (Firebase disabled)")
 
-    pred_count = len(predictions)
-    settled = [p for p in predictions if p.get("status") == "settled"]
+    displayed_predictions = predictions
+    if status.get("firebase_enabled") and status.get("firebase_error"):
+        displayed_predictions = predictions or load_verified_history_snapshot()
+        st.sidebar.caption("History shown from a read-only saved copy.")
+    pred_count = len(displayed_predictions)
+    settled = [p for p in displayed_predictions if p.get("status") == "settled"]
     correct = [p for p in settled if p.get("correct")]
     if settled:
         acc = len(correct) / len(settled)
@@ -394,6 +403,8 @@ def main():
     # ══════════════════════════════════════════════════════════════════════
     with tab1:
         st.subheader("Select a team to predict their next game")
+        if not status.get("predictions_writable"):
+            st.info("Saving predictions is paused while Firebase history is unavailable. Your saved history is protected.")
 
         # Team dropdown
         if nba_teams:
@@ -685,9 +696,22 @@ def main():
 
         predictions = _load_predictions()  # reload to include any just-saved
         predictions = _dedupe_predictions_by_game_id(predictions)
+        history_status = storage.get_storage_status()
+        cloud_unavailable = history_status.get("firebase_enabled") and bool(history_status.get("firebase_error"))
+        using_snapshot = cloud_unavailable and not predictions
+        if using_snapshot:
+            predictions = load_verified_history_snapshot()
+        can_edit_history = history_status.get("predictions_writable", False) and not using_snapshot
+        if cloud_unavailable:
+            st.warning("Firebase history is temporarily unavailable. Showing a read-only saved copy; editing is paused.")
+            if using_snapshot:
+                st.caption("Recovered from the 120-row history table verified on 21 Sep 2026. Probabilities retain their displayed precision; original record IDs, timestamps and scores are not available in this copy.")
+            else:
+                st.caption("Showing the last successful Firebase read. Cloud history refreshes at most once every 15 minutes.")
+            if "429" in str(history_status.get("firebase_error")) or "Quota" in str(history_status.get("firebase_error")):
+                st.info("Firestore's daily read quota is exhausted. The free quota resets around midnight Pacific time; a later page visit will retry automatically.")
 
         if not predictions:
-            history_status = storage.get_storage_status()
             if history_status.get("firebase_enabled") and history_status.get("firebase_error"):
                 st.error("Prediction history could not be read from Firebase. This does not mean the saved records have been deleted.")
                 st.caption(history_status["firebase_error"])
@@ -733,7 +757,7 @@ def main():
                 )
             with col_clean:
                 raw_count = len(_load_predictions())
-                if raw_count > len(predictions_sorted):
+                if raw_count > len(predictions_sorted) and not history_status.get("firebase_enabled"):
                     if st.button("🧹 Clean duplicates", help="Remove duplicate entries (same game, home/away) from saved history"):
                         deduped = _dedupe_predictions_by_game_id(_load_predictions())
                         _save_predictions(deduped)
@@ -762,15 +786,19 @@ def main():
                     "Select predictions to delete (you can re-predict them afterwards)",
                     options=list(delete_map.keys()),
                     default=[],
+                    disabled=not can_edit_history,
                 )
                 if st.button(
                     "🗑️ Delete selected predictions",
                     type="secondary",
-                    disabled=(len(selected_delete_labels) == 0),
+                    disabled=(not can_edit_history or len(selected_delete_labels) == 0),
                 ):
                     to_delete_ids = {delete_map[lbl] for lbl in selected_delete_labels}
-                    remaining = [p for p in predictions if p.get("game_id") not in to_delete_ids]
-                    _save_predictions(remaining)
+                    try:
+                        storage.delete_predictions(to_delete_ids)
+                    except storage.PredictionStorageError as exc:
+                        st.error(str(exc))
+                        st.stop()
                     st.success(f"Deleted {len(to_delete_ids)} prediction(s). You can now predict them again.")
                     st.rerun()
 
@@ -794,7 +822,9 @@ def main():
                     if home_prob is None:
                         # Fallback for older records that may not have home_win_probability
                         home_prob = p.get("win_probability", 0.0)
-                    if p.get("predicted_winner") == p.get("home_team"):
+                    if p.get("displayed_win_probability") is not None:
+                        team_prob = p["displayed_win_probability"]
+                    elif p.get("predicted_winner") == p.get("home_team"):
                         team_prob = home_prob
                     elif p.get("predicted_winner") == p.get("away_team"):
                         team_prob = 1.0 - home_prob
@@ -814,6 +844,7 @@ def main():
                 df_history = pd.DataFrame(rows)
                 st.dataframe(df_history, hide_index=True)
                 st.caption(f"Showing {len(predictions_filtered)} prediction(s) — most recent first.")
+                st.download_button("Download history · CSV", df_history.to_csv(index=False), "nba_prediction_history.csv", "text/csv", on_click="ignore")
 
     # ══════════════════════════════════════════════════════════════════════
     #  TAB 3 — EXPERIMENT REPORT

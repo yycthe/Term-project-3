@@ -1,6 +1,11 @@
 import base64
 import json
 import os
+import copy
+import tempfile
+import threading
+import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import config
@@ -8,16 +13,30 @@ import config
 _FIREBASE_READY = False
 _FIREBASE_ERROR: Optional[str] = None
 _DB = None
+_PREDICTIONS_CACHE = None
+_PREDICTIONS_DOC_IDS = {}
+_PREDICTIONS_RETRY_AT = 0.0
+_PREDICTIONS_ERROR = None
+_PREDICTIONS_SOURCE = "unavailable"
+_PREDICTIONS_LOCK = threading.RLock()
+PREDICTIONS_CACHE_SECONDS = 900
+
+
+class PredictionStorageError(RuntimeError):
+    """A prediction mutation was not safely persisted."""
 
 
 def get_storage_status() -> Dict[str, Any]:
     """Return current backend status for UI/debug."""
     enabled = _firebase_enabled()
     connected = _ensure_firestore() if enabled else False
+    error = _PREDICTIONS_ERROR or _FIREBASE_ERROR
     return {
         "firebase_enabled": enabled,
-        "firebase_connected": connected and not _FIREBASE_ERROR,
-        "firebase_error": _FIREBASE_ERROR,
+        "firebase_connected": connected and not error,
+        "firebase_error": error,
+        "predictions_source": _PREDICTIONS_SOURCE,
+        "predictions_writable": not enabled or (_PREDICTIONS_SOURCE == "firestore" and not error),
     }
 
 
@@ -69,9 +88,6 @@ def _ensure_firestore() -> bool:
     global _FIREBASE_READY, _FIREBASE_ERROR, _DB
     if _FIREBASE_READY:
         return True
-    if _FIREBASE_ERROR:
-        return False
-
     if not _firebase_enabled():
         _FIREBASE_ERROR = "Firebase disabled by config."
         return False
@@ -97,54 +113,154 @@ def _ensure_firestore() -> bool:
         return False
 
 
-def load_predictions() -> List[Dict[str, Any]]:
-    """Load prediction history from Firestore, fallback to local JSON."""
-    if _ensure_firestore():
-        try:
-            docs = _DB.collection(config.FIREBASE_PREDICTIONS_COLLECTION).stream()
-            rows = [d.to_dict() for d in docs if d.to_dict()]
-            return rows
-        except Exception as e:
-            global _FIREBASE_ERROR
-            _FIREBASE_ERROR = f"load_predictions failed: {e}"
+def _prediction_key(row):
+    return str(row.get("game_id") or row.get("id") or "")
 
-    if os.path.exists(config.PREDICTIONS_FILE):
+
+def _read_json_file(path, default):
+    try:
+        with open(path) as source:
+            value = json.load(source)
+        return value if isinstance(value, type(default)) else default
+    except (OSError, ValueError):
+        return default
+
+
+def _atomic_json(path, value):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as target:
+            temporary = target.name
+            json.dump(value, target, indent=2, default=str)
+        os.replace(temporary, path)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def _cloud_mirror_path():
+    return Path(config.OUTPUTS_DIR) / "predictions_firestore_cache.json"
+
+
+def _mirror_cloud_history(rows):
+    # Cloud data has its own mirror; never confuse it with local development history.
+    try:
+        _atomic_json(_cloud_mirror_path(), {
+            "project": _get_secret_value(config.FIREBASE_PROJECT_ID_ENV),
+            "collection": config.FIREBASE_PREDICTIONS_COLLECTION,
+            "predictions": rows,
+        })
+    except OSError:
+        pass  # A read-only filesystem must not turn a successful cloud read into failure.
+
+
+def load_predictions() -> List[Dict[str, Any]]:
+    """Share one cloud read per 15 minutes; retain the last good data on failure."""
+    global _PREDICTIONS_CACHE, _PREDICTIONS_DOC_IDS, _PREDICTIONS_RETRY_AT
+    global _PREDICTIONS_ERROR, _PREDICTIONS_SOURCE, _FIREBASE_ERROR
+    if not _firebase_enabled():
+        _PREDICTIONS_SOURCE = "local"
+        return _read_json_file(config.PREDICTIONS_FILE, [])
+    with _PREDICTIONS_LOCK:
+        if time.monotonic() < _PREDICTIONS_RETRY_AT:
+            return copy.deepcopy(_PREDICTIONS_CACHE or [])
         try:
-            with open(config.PREDICTIONS_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
+            if not _ensure_firestore():
+                raise PredictionStorageError(_FIREBASE_ERROR or "Firebase initialization failed")
+            rows, document_ids = [], {}
+            docs = _DB.collection(config.FIREBASE_PREDICTIONS_COLLECTION).stream(timeout=10, retry=None)
+            for doc in docs:
+                row = doc.to_dict()
+                if row:
+                    rows.append(row)
+                    document_ids.setdefault(_prediction_key(row), []).append(doc.id)
+            _PREDICTIONS_CACHE, _PREDICTIONS_DOC_IDS = rows, document_ids
+            _PREDICTIONS_ERROR = _FIREBASE_ERROR = None
+            _PREDICTIONS_SOURCE = "firestore"
+            _mirror_cloud_history(rows)
+        except Exception as exc:
+            _PREDICTIONS_ERROR = f"load_predictions failed: {exc}"
+            if _PREDICTIONS_CACHE is None:
+                mirror = _read_json_file(_cloud_mirror_path(), {})
+                if (mirror.get("project") == _get_secret_value(config.FIREBASE_PROJECT_ID_ENV)
+                        and mirror.get("collection") == config.FIREBASE_PREDICTIONS_COLLECTION
+                        and isinstance(mirror.get("predictions"), list)):
+                    _PREDICTIONS_CACHE = mirror["predictions"]
+            _PREDICTIONS_SOURCE = "cache" if _PREDICTIONS_CACHE is not None else "unavailable"
+        _PREDICTIONS_RETRY_AT = time.monotonic() + PREDICTIONS_CACHE_SECONDS
+        return copy.deepcopy(_PREDICTIONS_CACHE or [])
+
+
+def _require_live_history():
+    rows = load_predictions()
+    if _PREDICTIONS_ERROR or _PREDICTIONS_SOURCE != "firestore":
+        raise PredictionStorageError("Cloud history is unavailable. Changes are paused to protect saved records.")
+    return rows
+
+
+def _commit_prediction_changes(upserts, deleted_ids=()):
+    global _PREDICTIONS_ERROR, _PREDICTIONS_RETRY_AT
+    coll = _DB.collection(config.FIREBASE_PREDICTIONS_COLLECTION)
+    operations = [("set", key, payload) for key, payload in upserts.items()]
+    operations += [("delete", key, None) for key in deleted_ids]
+    try:
+        for start in range(0, len(operations), 450):
+            batch = _DB.batch()
+            for action, key, payload in operations[start:start + 450]:
+                if action == "set":
+                    batch.set(coll.document(key), payload)
+                else:
+                    batch.delete(coll.document(key))
+            batch.commit()
+    except Exception as exc:
+        _PREDICTIONS_ERROR = f"Prediction write failed: {exc}"
+        _PREDICTIONS_RETRY_AT = time.monotonic() + PREDICTIONS_CACHE_SECONDS
+        raise PredictionStorageError("Could not save the cloud change. The last verified history is preserved.") from exc
 
 
 def save_predictions(preds: List[Dict[str, Any]]) -> None:
-    """Save prediction history to Firestore, and also mirror to local JSON."""
-    if _ensure_firestore():
-        try:
-            coll = _DB.collection(config.FIREBASE_PREDICTIONS_COLLECTION)
-            incoming: Dict[str, Dict[str, Any]] = {}
-            for p in preds:
-                doc_id = str(p.get("game_id") or p.get("id") or "")
-                if not doc_id:
-                    continue
-                incoming[doc_id] = p
+    """Upsert changed records only. Omission from a submitted list never deletes."""
+    global _PREDICTIONS_CACHE
+    if any(row.get("_history_snapshot") for row in preds):
+        raise PredictionStorageError("A recovered display snapshot cannot be saved as live predictions.")
+    if not _firebase_enabled():
+        _atomic_json(config.PREDICTIONS_FILE, preds)
+        return
+    with _PREDICTIONS_LOCK:
+        current = {_prediction_key(row): row for row in _require_live_history()}
+        incoming = {_prediction_key(row): row for row in preds if _prediction_key(row)}
+        changed = {key: row for key, row in incoming.items() if current.get(key) != row}
+        _commit_prediction_changes(changed)
+        current.update(copy.deepcopy(changed))
+        _PREDICTIONS_CACHE = list(current.values())
+        for key in changed:
+            ids = _PREDICTIONS_DOC_IDS.setdefault(key, [])
+            if key not in ids:
+                ids.append(key)
+        _mirror_cloud_history(_PREDICTIONS_CACHE)
 
-            existing_ids = set(d.id for d in coll.stream())
-            incoming_ids = set(incoming.keys())
-            to_delete = existing_ids - incoming_ids
 
-            batch = _DB.batch()
-            for doc_id, payload in incoming.items():
-                batch.set(coll.document(doc_id), payload)
-            for doc_id in to_delete:
-                batch.delete(coll.document(doc_id))
-            batch.commit()
-        except Exception as e:
-            global _FIREBASE_ERROR
-            _FIREBASE_ERROR = f"save_predictions failed: {e}"
-
-    with open(config.PREDICTIONS_FILE, "w") as f:
-        json.dump(preds, f, indent=2, default=str)
+def delete_predictions(game_ids) -> None:
+    """Delete only records explicitly selected by the user, after a healthy read."""
+    global _PREDICTIONS_CACHE
+    selected = {str(value) for value in game_ids}
+    with _PREDICTIONS_LOCK:
+        if not _firebase_enabled():
+            rows = [row for row in load_predictions() if _prediction_key(row) not in selected]
+            _atomic_json(config.PREDICTIONS_FILE, rows)
+            return
+        rows = _require_live_history()
+        known = {_prediction_key(row) for row in rows}
+        if not selected.issubset(known):
+            raise PredictionStorageError("Some selected records are no longer in the loaded history. Reload before deleting.")
+        document_ids = {doc_id for key in selected for doc_id in _PREDICTIONS_DOC_IDS.get(key, [])}
+        _commit_prediction_changes({}, document_ids)
+        _PREDICTIONS_CACHE = [row for row in rows if _prediction_key(row) not in selected]
+        for key in selected:
+            _PREDICTIONS_DOC_IDS.pop(key, None)
+        _mirror_cloud_history(_PREDICTIONS_CACHE)
 
 
 def load_agent_memory() -> Dict[str, Any]:
