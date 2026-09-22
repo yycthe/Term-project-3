@@ -4,7 +4,7 @@ Streamlit UI — NBA Game Predictor
 Three tabs:
   1. Predict Next Game  — select a team, see their next opponent, predict
   2. Prediction History — track all predictions vs actual results
-  3. Experiment Report  — model training details
+  3. Experiment Report  — training dashboard and data preparation
 """
 
 import os
@@ -814,6 +814,7 @@ def main():
     #  TAB 3 — EXPERIMENT REPORT
     # ══════════════════════════════════════════════════════════════════════
     with tab3:
+        st.caption("[Training results](#training-progress) · [Data preparation](#data-preparation) · [Data coverage](#data-snapshot)")
         render_report_dashboard(model, metrics, team_stats, artifact_version_key())
 
 
