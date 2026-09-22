@@ -687,7 +687,12 @@ def main():
         predictions = _dedupe_predictions_by_game_id(predictions)
 
         if not predictions:
-            st.info("No predictions yet. Go to the Predict tab to make your first!")
+            history_status = storage.get_storage_status()
+            if history_status.get("firebase_enabled") and history_status.get("firebase_error"):
+                st.error("Prediction history could not be read from Firebase. This does not mean the saved records have been deleted.")
+                st.caption(history_status["firebase_error"])
+            else:
+                st.info("No predictions yet. Go to the Predict tab to make your first!")
         else:
             # Sort by game date: most recent first
             predictions_sorted = sorted(

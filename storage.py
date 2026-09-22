@@ -16,7 +16,7 @@ def get_storage_status() -> Dict[str, Any]:
     connected = _ensure_firestore() if enabled else False
     return {
         "firebase_enabled": enabled,
-        "firebase_connected": connected,
+        "firebase_connected": connected and not _FIREBASE_ERROR,
         "firebase_error": _FIREBASE_ERROR,
     }
 
