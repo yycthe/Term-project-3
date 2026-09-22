@@ -13,6 +13,7 @@ import streamlit as st
 import config
 import evaluate
 import features
+from data_preparation import render_data_preparation
 
 
 FAMILIES = ["Random forest", "Logistic regression", "XGBoost"]
@@ -59,9 +60,11 @@ def parse_experiments(markdown):
 def _dataset_summary(path, version, window_years):
     """Summarize the current CSV without fetching data or running training."""
     try:
-        frame = pd.read_csv(path, usecols=lambda c: c in {"GAME_ID", "GAME_DATE", "SEASON_START_YEAR"})
+        frame = pd.read_csv(path)
         if not {"GAME_ID", "GAME_DATE", "SEASON_START_YEAR"}.issubset(frame):
             return {}
+        raw_rows, raw_columns = frame.shape
+        teams = int(frame["TEAM_ID"].nunique()) if "TEAM_ID" in frame else None
         frame = frame.drop_duplicates("GAME_ID")
         dates = pd.to_datetime(frame["GAME_DATE"], errors="coerce")
         season = int(frame["SEASON_START_YEAR"].max())
@@ -69,6 +72,7 @@ def _dataset_summary(path, version, window_years):
         if window_years is not None:
             train &= frame["SEASON_START_YEAR"] >= season - int(window_years)
         return {
+            "rows": raw_rows, "columns": raw_columns, "teams": teams,
             "games": len(frame), "start": dates.min().strftime("%d %b %Y"),
             "end": dates.max().strftime("%d %b %Y"),
             "train": int(train.sum()), "evaluation": int((frame["SEASON_START_YEAR"] == season).sum()),
@@ -260,6 +264,8 @@ def render_report_dashboard(model, metrics, team_stats, artifact_version):
             )
             st.caption("Ranked by log loss, the training objective. Only trials retained in the saved report are included.")
             st.download_button("Download experiments · CSV", experiments.to_csv(index=False), "nba_experiments.csv", "text/csv", key="report_download_trials")
+
+    render_data_preparation(summary, metrics)
 
     data_col, method_col = st.columns(2, gap="large")
     with data_col.container(border=True):
